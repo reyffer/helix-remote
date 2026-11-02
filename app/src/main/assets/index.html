@@ -75,6 +75,10 @@
   .wide { flex: 1; padding: 14px; border-radius: 12px; background: var(--panel2); border: 1px dashed var(--line);
     font-weight: 700; font-size: 15px; }
   .wide:disabled { opacity: .4; }
+  .kbwarn { background: #2A2210; border: 1px solid var(--amber); color: #F7E3B5; border-radius: 12px; padding: 10px 12px;
+    font-size: 14px; line-height: 1.45; margin-bottom: 10px; }
+  .kbwarn button { display: block; margin-top: 8px; padding: 10px 14px; border-radius: 9px; background: var(--amber);
+    color: #1A1406; font-weight: 700; font-size: 14px; }
   .note { color: var(--dim); font-size: 13px; line-height: 1.45; margin: 4px 2px 12px; }
 
   /* ---------- faders */
@@ -291,6 +295,13 @@ function renderEdit(el) {
   ).join("");
   html += '<div class="addrow"><button class="wide" id="btnAdd"' + (songs.length >= MAX_SONGS ? " disabled" : "") + ">+ Add song</button>" +
           (songs.length ? '<button class="wide" id="btnClear" style="flex:none;padding:14px 16px;color:var(--red)">Clear all</button>' : "") + "</div>";
+  let hardKb = false;
+  try { hardKb = !DEMO && N.hardKeyboard(); } catch (e) {}
+  if (hardKb) {
+    html = '<div class="kbwarn">The phone thinks a keyboard is plugged in (the Helix), so it hides the on-screen keyboard. ' +
+           'Turn on <b>Show on-screen keyboard</b> in the phone\'s Physical keyboard settings (once only).' +
+           '<button id="btnKb">Open keyboard settings</button></div>' + html;
+  }
   html += '<p class="note">Song 1 sets Helix snapshot 1, song 2 snapshot 2, and so on (8 songs max). ' +
           "Leave BPM empty to skip the tempo, or Delay empty to leave the delay pedal alone. " +
           "Delay start % is the position of EXP 2 (0 = heel, 100 = toe). Changes save straight away.</p>";
@@ -339,6 +350,7 @@ $("list").addEventListener("click", (e) => {
     if (s.title && !confirm('Remove "' + s.title + '"?')) return;
     songs.splice(i, 1); saveSongs(); renderList(); return;
   }
+  if (b.id === "btnKb") { try { N.openKeyboardSettings(); } catch (e) {} return; }
   if (b.id === "btnAdd") {
     if (songs.length >= MAX_SONGS) return;
     songs.push({ id: newId(), title: "", key: "", bpm: "", delay: "" });

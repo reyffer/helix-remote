@@ -2,6 +2,8 @@ package com.reyffer.helixremote;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
+import android.content.res.Configuration;
 import android.media.midi.MidiDevice;
 import android.media.midi.MidiDeviceInfo;
 import android.media.midi.MidiInputPort;
@@ -12,15 +14,19 @@ import android.net.LinkProperties;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Base64;
+import android.view.ViewGroup;
+import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.widget.FrameLayout;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -77,7 +83,21 @@ public class MainActivity extends Activity {
         web.setBackgroundColor(0xFF0B0D10);
         web.setWebChromeClient(new WebChromeClient());   // lets the page use confirm() dialogs
         web.addJavascriptInterface(new Bridge(), "Native");
-        setContentView(web);
+
+        // Android 15+ draws apps underneath the status bar, navigation bar and keyboard.
+        // Pad the page by those areas so nothing hides behind the clock or the keyboard.
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(0xFF0B0D10);
+        root.addView(web, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        if (Build.VERSION.SDK_INT >= 35) {
+            root.setOnApplyWindowInsetsListener((v, insets) -> {
+                android.graphics.Insets b = insets.getInsets(WindowInsets.Type.systemBars()
+                        | WindowInsets.Type.displayCutout() | WindowInsets.Type.ime());
+                v.setPadding(b.left, b.top, b.right, b.bottom);
+                return WindowInsets.CONSUMED;
+            });
+        }
+        setContentView(root);
         web.loadUrl("file:///android_asset/index.html");
 
         midi = (MidiManager) getSystemService(Context.MIDI_SERVICE);
@@ -379,6 +399,19 @@ public class MainActivity extends Activity {
 
     private class Bridge {
         @JavascriptInterface public String version() { return BuildConfig.VERSION_NAME; }
+
+        /** True when Android thinks a physical keyboard is plugged in (the Helix's USB can look like one),
+            which makes it hide the on-screen keyboard. */
+        @JavascriptInterface public boolean hardKeyboard() {
+            Configuration c = getResources().getConfiguration();
+            return c.keyboard != Configuration.KEYBOARD_NOKEYS && c.hardKeyboardHidden == Configuration.HARDKEYBOARDHIDDEN_NO;
+        }
+        @JavascriptInterface public void openKeyboardSettings() {
+            main.post(() -> {
+                try { startActivity(new Intent(android.provider.Settings.ACTION_HARD_KEYBOARD_SETTINGS)); }
+                catch (Exception e) { startActivity(new Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS)); }
+            });
+        }
 
         // Helix
         @JavascriptInterface public void helixConnect() { main.post(MainActivity.this::connectHelix); }
