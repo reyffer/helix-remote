@@ -1,0 +1,42 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.reyffer.helixremote"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.reyffer.helixremote"
+        minSdk 28
+        targetSdk 35
+        // CI passes the build number so each new APK installs over the old one
+        versionCode Integer.parseInt(System.getenv("BUILD_NUMBER") ?: "1")
+        versionName "1." + (System.getenv("BUILD_NUMBER") ?: "0")
+    }
+
+    // A fixed signing key kept in the repo, so updates install over the previous version.
+    // (Only for this personal, sideloaded app; it isn't a Play Store key.)
+    signingConfigs {
+        release {
+            storeFile file("helix-remote.keystore")
+            storePassword "helixremote"
+            keyAlias "helixremote"
+            keyPassword "helixremote"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    buildFeatures { buildConfig true }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

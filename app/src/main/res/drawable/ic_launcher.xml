@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App icon: a green guitar pick on a dark rounded square -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#0B0D10" android:pathData="M24,4h60a20,20 0,0 1,20 20v60a20,20 0,0 1,-20 20h-60a20,20 0,0 1,-20 -20v-60a20,20 0,0 1,20 -20z" />
+    <path android:fillColor="#3DDC97" android:pathData="M54,22C72,22 84,30 84,42C84,58 66,80 54,88C42,80 24,58 24,42C24,30 36,22 54,22z" />
+    <path android:fillColor="#0B0D10" android:pathData="M45,38h6v10h6v-10h6v26h-6v-10h-6v10h-6z" />
+</vector>

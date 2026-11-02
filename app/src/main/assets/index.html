@@ -1,0 +1,803 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Helix Remote</title>
+<style>
+  :root {
+    --bg: #0B0D10;
+    --panel: #14181D;
+    --panel2: #1B2027;
+    --line: #262D35;
+    --text: #E8EDF2;
+    --dim: #8A96A3;
+    --green: #3DDC97;
+    --green-dark: #0F3A2A;
+    --amber: #F5B83D;
+    --red: #FF5D5D;
+    --blue: #5AA9FF;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: Roboto, system-ui, -apple-system, "Segoe UI", sans-serif; overscroll-behavior: none; }
+  body { display: flex; flex-direction: column; user-select: none; -webkit-user-select: none; }
+  button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; }
+  input { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 8px; padding: 9px 10px; width: 100%; user-select: text; -webkit-user-select: text; }
+  input:focus { outline: none; border-color: var(--green); }
+
+  /* ---------- header */
+  header { display: flex; align-items: center; gap: 6px; padding: 10px 10px; border-bottom: 1px solid var(--line);
+    background: var(--panel); flex: none; }
+  header h1 { font-size: 16px; margin: 0 auto 0 0; font-weight: 700; letter-spacing: .2px; white-space: nowrap; }
+  .chip { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; padding: 7px 9px;
+    border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); white-space: nowrap; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); flex: none; }
+  .chip.ok .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .chip.wait .dot { background: var(--amber); }
+  .hbtn { font-size: 14px; font-weight: 600; padding: 8px 11px; border-radius: 8px; background: var(--panel2);
+    border: 1px solid var(--line); }
+  .hbtn.on { background: var(--green); color: #06140E; border-color: var(--green); }
+  .icon { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; flex: none; }
+  footer.hidden { display: none; }
+
+  /* ---------- song list */
+  main { flex: 1; overflow-y: auto; padding: 10px 10px 4px; -webkit-overflow-scrolling: touch; }
+  .empty { color: var(--dim); text-align: center; padding: 48px 20px; font-size: 16px; line-height: 1.5; }
+  .song { display: flex; align-items: stretch; background: var(--panel); border: 2px solid var(--line);
+    border-radius: 14px; margin-bottom: 8px; min-height: 76px; overflow: hidden; }
+  .song.live { border-color: var(--green); background: #10201A; }
+  .num { width: 40px; flex: none; display: grid; place-items: center; font-size: 20px; font-weight: 800; color: var(--dim);
+    border-right: 1px solid var(--line); }
+  .song.live .num { color: var(--green); }
+  .info { flex: 1; min-width: 0; padding: 9px 10px; display: flex; flex-direction: column; justify-content: center; gap: 5px; }
+  .title { font-size: 20px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--dim); }
+  .key { color: var(--amber); font-weight: 800; font-size: 19px; }
+  .setbtn { width: 84px; flex: none; font-size: 19px; font-weight: 800; letter-spacing: 1px; background: var(--panel2);
+    border-left: 1px solid var(--line); color: var(--text); }
+  .setbtn:active { background: var(--green-dark); }
+  .song.live .setbtn { background: var(--green); color: #06140E; border-left-color: var(--green); }
+  .setbtn small { display: block; font-size: 11px; font-weight: 700; letter-spacing: .5px; opacity: .8; margin-top: 2px; }
+
+  /* edit mode */
+  .erow { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 8px; padding: 8px; }
+  .erow .top { display: flex; gap: 6px; align-items: center; }
+  .erow .bottom { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 6px; padding-left: 92px; }
+  .erow label { font-size: 11px; color: var(--dim); display: block; margin-bottom: 2px; }
+  .ebtn { width: 40px; height: 40px; border-radius: 8px; background: var(--panel2); border: 1px solid var(--line);
+    font-size: 16px; flex: none; }
+  .ebtn:disabled { opacity: .3; }
+  .ebtn.del { color: var(--red); }
+  .enum { width: 24px; text-align: center; font-weight: 800; color: var(--dim); flex: none; }
+  .addrow { display: flex; gap: 8px; margin: 4px 0 12px; }
+  .wide { flex: 1; padding: 14px; border-radius: 12px; background: var(--panel2); border: 1px dashed var(--line);
+    font-weight: 700; font-size: 15px; }
+  .wide:disabled { opacity: .4; }
+  .note { color: var(--dim); font-size: 13px; line-height: 1.45; margin: 4px 2px 12px; }
+
+  /* ---------- faders */
+  footer { flex: none; background: var(--panel); border-top: 1px solid var(--line); padding: 6px 10px 10px; }
+  footer.off .fader { opacity: .45; }
+  .fstatus { font-size: 12px; color: var(--dim); text-align: center; padding: 2px 0 2px; min-height: 16px; }
+  .fader { padding: 4px 0; }
+  .fhead { display: flex; align-items: baseline; gap: 8px; font-size: 13px; margin: 0 52px 3px; }
+  .fname { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ftag { font-size: 11px; color: var(--red); font-weight: 700; }
+  .fval { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--green); }
+  .frow { display: flex; align-items: center; gap: 8px; }
+  .step { width: 44px; height: 40px; border-radius: 9px; background: var(--panel2); border: 1px solid var(--line);
+    font-size: 22px; font-weight: 700; flex: none; }
+  .step:active { background: var(--green-dark); }
+  .track { position: relative; flex: 1; height: 40px; border-radius: 9px; background: var(--bg);
+    border: 1px solid var(--line); touch-action: none; overflow: hidden; }
+  .fill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #17392B, #24604A); }
+  .thumb { position: absolute; top: 3px; bottom: 3px; width: 18px; margin-left: -9px; border-radius: 5px;
+    background: var(--text); box-shadow: 0 0 0 2px var(--bg); }
+  .track.drag .thumb { background: var(--green); }
+  .zero { position: absolute; top: 0; bottom: 0; width: 2px; background: #ffffff30; }
+
+  /* ---------- settings sheet */
+  .sheet { position: fixed; inset: 0; background: var(--bg); z-index: 10; display: none; flex-direction: column; }
+  .sheet.open { display: flex; }
+  .sheet .body { flex: 1; overflow-y: auto; padding: 12px 14px 30px; }
+  .sheet h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); margin: 18px 0 8px; }
+  .field { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .field > span { flex: 1; font-size: 15px; }
+  .field > span small { display: block; color: var(--dim); font-size: 12px; margin-top: 2px; }
+  .field input { width: 92px; text-align: center; }
+  .field input.ip { width: 160px; }
+  .toggle { width: 52px; height: 30px; border-radius: 999px; background: var(--line); position: relative; flex: none; }
+  .toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--text); transition: left .15s; }
+  .toggle.on { background: var(--green); }
+  .toggle.on::after { left: 25px; }
+  .status { font-size: 14px; color: var(--dim); padding: 8px 0; line-height: 1.5; }
+  .rowbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .rowbtns button { padding: 10px 14px; border-radius: 9px; background: var(--panel2); border: 1px solid var(--line);
+    font-weight: 600; font-size: 14px; }
+  .log { font: 11px/1.45 ui-monospace, monospace; color: var(--dim); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 9px; padding: 8px; max-height: 260px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+    user-select: text; -webkit-user-select: text; }
+
+  .toast { position: fixed; left: 50%; top: 64px; transform: translateX(-50%); background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 15px; z-index: 20;
+    opacity: 0; pointer-events: none; transition: opacity .2s; max-width: 90vw; text-align: center; }
+  .toast.show { opacity: 1; }
+  .toast.bad { border-color: var(--red); color: #FFD0D0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Helix Remote</h1>
+  <button class="chip" id="chipHelix" title="Helix"><span class="dot"></span>Helix</button>
+  <button class="chip" id="chipWing" title="Wing"><span class="dot"></span>Wing</button>
+  <button class="hbtn" id="btnEdit">Edit</button>
+  <button class="hbtn icon" id="btnSettings" aria-label="Settings">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+  </button>
+</header>
+
+<main id="list"></main>
+
+<footer id="faders" class="off">
+  <div class="fstatus" id="fstatus">Looking for the Wing…</div>
+  <div id="faderRows"></div>
+</footer>
+
+<div class="sheet" id="sheet">
+  <header>
+    <h1>Settings</h1>
+    <button class="hbtn on" id="btnClose">Done</button>
+  </header>
+  <div class="body">
+    <h2>Helix</h2>
+    <div class="status" id="helixStatus">–</div>
+    <div class="field"><span>MIDI channel<small>Helix: Global Settings → MIDI/Tempo → MIDI Base Channel</small></span>
+      <input type="number" id="setMidiCh" min="1" max="16" inputmode="numeric"></div>
+    <div class="field"><span>Tap-tempo taps<small>How many taps SET sends for the BPM (2–8)</small></span>
+      <input type="number" id="setTaps" min="2" max="8" inputmode="numeric"></div>
+    <div class="rowbtns"><button id="btnHelixRetry">Reconnect Helix</button></div>
+
+    <h2>Wing</h2>
+    <div class="status" id="wingStatus">–</div>
+    <div class="field"><span>Find the Wing automatically<small>Off = always use the address below</small></span>
+      <button class="toggle" id="setWingAuto"></button></div>
+    <div class="field"><span>Wing address<small>Filled in automatically when found</small></span>
+      <input class="ip" id="setWingIp" inputmode="decimal" placeholder="192.168.1.50"></div>
+    <div class="field"><span>In-ear bus<small>The bus your IEM mix comes from</small></span>
+      <input type="number" id="setBus" min="1" max="16" inputmode="numeric"></div>
+    <div class="field"><span>My channel<small>Top fader: this channel's send to the bus</small></span>
+      <input type="number" id="setCh1" min="1" max="40" inputmode="numeric"></div>
+    <div class="field"><span>Second channel<small>Middle fader (keys, to start with)</small></span>
+      <input type="number" id="setCh2" min="1" max="40" inputmode="numeric"></div>
+    <div class="field"><span>Show bus master fader<small>The overall level of your in-ear bus</small></span>
+      <button class="toggle" id="setMaster"></button></div>
+    <div class="rowbtns"><button id="btnWingRetry">Search for the Wing again</button></div>
+
+    <h2>Log</h2>
+    <div class="log" id="log"></div>
+    <div class="rowbtns"><button id="btnClearLog">Clear log</button></div>
+    <p class="note" id="version"></p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* =====================================================================================
+   Helix Remote
+   - Weekly song list. Song 1 = Helix snapshot 1, song 2 = snapshot 2, ... (max 8).
+   - SET sends: snapshot (CC69), delay start level (EXP2 = CC2), tempo (CC64 taps).
+   - Three Wing faders: my channel's send to the IEM bus, a second channel's send, the bus master.
+     They never touch the channels' own (PA) faders.
+   Inside the Android app, window.Native does the USB MIDI and UDP work.
+   In a desktop browser there is no Native, so the page runs a demo with a pretend Helix and Wing.
+   ===================================================================================== */
+
+const N = window.Native || null;
+const DEMO = !N;
+const $ = (id) => document.getElementById(id);
+
+// ------------------------------------------------------------------ storage (never fatal)
+function load(key, fallback) {
+  try { const v = localStorage.getItem(key); return v == null ? fallback : JSON.parse(v); } catch (e) { return fallback; }
+}
+function save(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+}
+
+const DEFAULTS = { midiCh: 1, taps: 4, wingAuto: true, wingIp: "", bus: 13, ch1: 13, ch2: 15, showMaster: true };
+const settings = Object.assign({}, DEFAULTS, load("hr.settings", {}));
+let songs = load("hr.songs", []);          // [{id, title, key, bpm, delay}]  delay = 0..100 or ""
+let liveId = load("hr.live", null);
+let editing = false;
+
+function saveSongs() { save("hr.songs", songs); }
+function saveSettings() { save("hr.settings", settings); }
+
+// ------------------------------------------------------------------ log + toast
+const logLines = [];
+function log(msg) {
+  const t = new Date();
+  const ts = t.toTimeString().slice(0, 8);
+  logLines.push(ts + "  " + msg);
+  if (logLines.length > 150) logLines.shift();
+  if ($("sheet").classList.contains("open")) renderLog();
+}
+function renderLog() { const el = $("log"); el.textContent = logLines.join("\n"); el.scrollTop = el.scrollHeight; }
+
+let toastTimer = 0;
+function toast(msg, bad) {
+  const el = $("toast");
+  el.textContent = msg;
+  el.className = "toast show" + (bad ? " bad" : "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = "toast" + (bad ? " bad" : ""); }, bad ? 3500 : 1800);
+}
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// =====================================================================================
+//  SONG LIST
+// =====================================================================================
+const MAX_SONGS = 8;   // Helix presets have 8 snapshots
+
+function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+function renderList() {
+  const el = $("list");
+  if (editing) return renderEdit(el);
+
+  if (!songs.length) {
+    el.innerHTML = '<div class="empty">No songs yet.<br>Tap <b>Edit</b> to add this week\'s list.</div>';
+    return;
+  }
+  el.innerHTML = songs.map((s, i) => {
+    const live = s.id === liveId;
+    const bits = [];
+    if (s.key) bits.push('<span class="key">' + esc(s.key) + "</span>");
+    if (s.bpm) bits.push("<span>" + esc(s.bpm) + " BPM</span>");
+    if (s.delay !== "" && s.delay != null) bits.push("<span>Dly " + esc(s.delay) + "%</span>");
+    return '<div class="song' + (live ? " live" : "") + '">' +
+      '<div class="num">' + (i + 1) + "</div>" +
+      '<div class="info"><div class="title">' + (esc(s.title) || "<span style='color:var(--dim)'>Untitled</span>") + "</div>" +
+      '<div class="meta">' + bits.join("") + "</div></div>" +
+      '<button class="setbtn" data-set="' + i + '">' + (live ? "LIVE" : "SET") +
+      (live && tapping ? "<small>TEMPO…</small>" : "") + "</button></div>";
+  }).join("");
+}
+
+function renderEdit(el) {
+  let html = songs.map((s, i) =>
+    '<div class="erow" data-i="' + i + '">' +
+      '<div class="top">' +
+        '<button class="ebtn" data-up="' + i + '"' + (i === 0 ? " disabled" : "") + ' aria-label="Move up">▲</button>' +
+        '<button class="ebtn" data-down="' + i + '"' + (i === songs.length - 1 ? " disabled" : "") + ' aria-label="Move down">▼</button>' +
+        '<span class="enum">' + (i + 1) + "</span>" +
+        '<input data-f="title" value="' + esc(s.title) + '" placeholder="Song title" autocomplete="off">' +
+        '<button class="ebtn del" data-del="' + i + '" aria-label="Remove">✕</button>' +
+      "</div>" +
+      '<div class="bottom">' +
+        '<div><label>Key</label><input data-f="key" value="' + esc(s.key) + '" placeholder="G" autocomplete="off"></div>' +
+        '<div><label>BPM</label><input data-f="bpm" value="' + esc(s.bpm) + '" inputmode="decimal" placeholder="72"></div>' +
+        '<div><label>Delay start %</label><input data-f="delay" value="' + esc(s.delay) + '" inputmode="numeric" placeholder="–"></div>' +
+      "</div></div>"
+  ).join("");
+  html += '<div class="addrow"><button class="wide" id="btnAdd"' + (songs.length >= MAX_SONGS ? " disabled" : "") + ">+ Add song</button>" +
+          (songs.length ? '<button class="wide" id="btnClear" style="flex:none;padding:14px 16px;color:var(--red)">Clear all</button>' : "") + "</div>";
+  html += '<p class="note">Song 1 sets Helix snapshot 1, song 2 snapshot 2, and so on (8 songs max). ' +
+          "Leave BPM empty to skip the tempo, or Delay empty to leave the delay pedal alone. " +
+          "Delay start % is the position of EXP 2 (0 = heel, 100 = toe). Changes save straight away.</p>";
+  el.innerHTML = html;
+}
+
+function setEditing(on) {
+  editing = on;
+  $("btnEdit").textContent = on ? "Done" : "Edit";
+  $("btnEdit").classList.toggle("on", on);
+  $("faders").classList.toggle("hidden", on);   // room for the keyboard while typing
+  if (!on) {
+    // tidy up numbers when leaving edit mode
+    songs.forEach((s) => {
+      s.title = (s.title || "").trim();
+      s.key = (s.key || "").trim();
+      const b = parseFloat(String(s.bpm).replace(",", "."));
+      s.bpm = b > 20 && b < 400 ? String(Math.round(b * 10) / 10) : "";
+      const d = parseInt(s.delay, 10);
+      s.delay = isNaN(d) ? "" : String(Math.max(0, Math.min(100, d)));
+    });
+    saveSongs();
+  }
+  renderList();
+}
+
+$("btnEdit").onclick = () => setEditing(!editing);
+
+$("list").addEventListener("input", (e) => {
+  const f = e.target.dataset.f;
+  if (!f) return;
+  const i = +e.target.closest(".erow").dataset.i;
+  songs[i][f] = e.target.value;
+  saveSongs();
+});
+
+$("list").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (b.dataset.set != null) return pressSet(+b.dataset.set);
+  if (b.dataset.up != null) { const i = +b.dataset.up; [songs[i - 1], songs[i]] = [songs[i], songs[i - 1]]; saveSongs(); renderList(); return; }
+  if (b.dataset.down != null) { const i = +b.dataset.down; [songs[i + 1], songs[i]] = [songs[i], songs[i + 1]]; saveSongs(); renderList(); return; }
+  if (b.dataset.del != null) {
+    const i = +b.dataset.del;
+    const s = songs[i];
+    if (s.title && !confirm('Remove "' + s.title + '"?')) return;
+    songs.splice(i, 1); saveSongs(); renderList(); return;
+  }
+  if (b.id === "btnAdd") {
+    if (songs.length >= MAX_SONGS) return;
+    songs.push({ id: newId(), title: "", key: "", bpm: "", delay: "" });
+    saveSongs(); renderList();
+    const inputs = $("list").querySelectorAll('input[data-f="title"]');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+    return;
+  }
+  if (b.id === "btnClear") {
+    if (!confirm("Clear the whole list for a new week?")) return;
+    songs = []; liveId = null; save("hr.live", null); saveSongs(); renderList(); return;
+  }
+});
+
+// =====================================================================================
+//  HELIX (USB MIDI)
+// =====================================================================================
+let helixOk = false, helixName = "";
+let tapping = false;
+
+function renderHelix() {
+  const c = $("chipHelix");
+  c.className = "chip" + (helixOk ? " ok" : "");
+  $("helixStatus").textContent = helixOk
+    ? "Connected: " + helixName + "."
+    : "Not connected. Plug the Helix into the phone's USB-C port and check Global Settings → MIDI/Tempo → MIDI Over USB is On.";
+}
+
+function pressSet(i) {
+  const s = songs[i];
+  if (!s) return;
+  if (i >= MAX_SONGS) { toast("Only 8 snapshots on the Helix", true); return; }
+  if (!helixOk && !DEMO) {
+    toast("Helix not connected – check the USB cable", true);
+    tryHelix();
+    return;
+  }
+  const bpm = parseFloat(s.bpm) || 0;
+  const d = parseInt(s.delay, 10);
+  const exp = isNaN(d) ? -1 : Math.round(Math.max(0, Math.min(100, d)) * 127 / 100);
+  liveId = s.id;
+  save("hr.live", liveId);
+  tapping = bpm > 0;
+  renderList();
+  log("SET " + (i + 1) + ' "' + s.title + '": snapshot ' + (i + 1) + (exp >= 0 ? ", EXP2 " + exp : "") + (bpm ? ", " + bpm + " BPM" : ""));
+  if (DEMO) {
+    setTimeout(() => onNative("set", "done"), bpm ? (settings.taps - 1) * 60000 / bpm + 100 : 100);
+  } else {
+    N.setSong(settings.midiCh, i, exp, bpm, settings.taps);
+  }
+}
+
+function tryHelix() {
+  if (DEMO) return;
+  try { if (!N.helixConnected()) N.helixConnect(); } catch (e) {}
+}
+
+$("chipHelix").onclick = () => {
+  if (helixOk) toast("Helix connected (" + helixName + ")");
+  else { toast("Looking for the Helix…"); tryHelix(); }
+};
+$("btnHelixRetry").onclick = () => { if (!DEMO) N.helixConnect(); log("Reconnecting Helix"); };
+
+// =====================================================================================
+//  WING (OSC over UDP, port 2223; discovery "WING?" on port 2222)
+// =====================================================================================
+
+// ---- OSC encode / decode
+const enc = new TextEncoder(), dec = new TextDecoder();
+function oscString(s) {
+  const b = enc.encode(s);
+  const out = new Uint8Array(Math.ceil((b.length + 1) / 4) * 4);
+  out.set(b);
+  return out;
+}
+function oscMessage(address, args) {
+  args = args || [];
+  const parts = [oscString(address), oscString("," + args.map((a) => a.t).join(""))];
+  for (const a of args) {
+    if (a.t === "f" || a.t === "i") {
+      const b = new Uint8Array(4), v = new DataView(b.buffer);
+      if (a.t === "f") v.setFloat32(0, a.v, false); else v.setInt32(0, a.v, false);
+      parts.push(b);
+    } else if (a.t === "s") parts.push(oscString(a.v));
+  }
+  const len = parts.reduce((n, p) => n + p.length, 0);
+  const out = new Uint8Array(len);
+  let o = 0;
+  for (const p of parts) { out.set(p, o); o += p.length; }
+  return out;
+}
+function oscParse(u8) {
+  let o = 0;
+  const v = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  function str() {
+    let end = o;
+    while (end < u8.length && u8[end] !== 0) end++;
+    const s = dec.decode(u8.subarray(o, end));
+    o = Math.ceil((end + 1) / 4) * 4;
+    return s;
+  }
+  const address = str();
+  const args = [];
+  if (o < u8.length && u8[o] === 44) {   // ','
+    const tags = str().slice(1);
+    for (const t of tags) {
+      if (t === "f") { args.push(v.getFloat32(o, false)); o += 4; }
+      else if (t === "i") { args.push(v.getInt32(o, false)); o += 4; }
+      else if (t === "s") args.push(str());
+      else if (t === "b") { const n = v.getInt32(o, false); o += 4 + Math.ceil(n / 4) * 4; args.push(null); }
+    }
+  }
+  return { address, args };
+}
+function toB64(u8) { let s = ""; for (const b of u8) s += String.fromCharCode(b); return btoa(s); }
+function fromB64(b64) { const s = atob(b64); const u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+
+// ---- Wing fader law (same as X32): position 0..1  <->  dB. 0.75 = 0 dB, 1.0 = +10 dB
+function posToDb(f) {
+  if (f <= 0) return -144;
+  if (f >= 0.5) return f * 40 - 30;
+  if (f >= 0.25) return f * 80 - 50;
+  if (f >= 0.0625) return f * 160 - 70;
+  return f * 480 - 90;
+}
+function dbToPos(d) {
+  if (d <= -90) return 0;
+  if (d >= -10) return Math.min(1, (d + 30) / 40);
+  if (d >= -30) return (d + 50) / 80;
+  if (d >= -60) return (d + 70) / 160;
+  return (d + 90) / 480;
+}
+function fmtDb(d) {
+  if (d <= -89.9) return "-∞";
+  return (d > 0 ? "+" : "") + (Math.round(d * 10) / 10).toFixed(1) + " dB";
+}
+
+// ---- the three faders
+let faders = [];
+function buildFaders() {
+  const bus = settings.bus, c1 = settings.ch1, c2 = settings.ch2;
+  faders = [
+    { k: "a", fallback: "Ch " + c1, suffix: " → bus " + bus, level: "/ch/" + c1 + "/send/" + bus + "/lvl",
+      on: "/ch/" + c1 + "/send/" + bus + "/on", onMeans: 1, name: "/ch/" + c1 + "/$name" },
+    { k: "b", fallback: "Ch " + c2, suffix: " → bus " + bus, level: "/ch/" + c2 + "/send/" + bus + "/lvl",
+      on: "/ch/" + c2 + "/send/" + bus + "/on", onMeans: 1, name: "/ch/" + c2 + "/$name" },
+  ];
+  if (settings.showMaster) {
+    faders.push({ k: "m", fallback: "Bus " + bus, suffix: " master", level: "/bus/" + bus + "/fdr",
+      on: "/bus/" + bus + "/mute", onMeans: 0, name: "/bus/" + bus + "/name" });
+  }
+  for (const f of faders) { f.db = null; f.title = ""; f.isOn = true; f.touched = 0; f.lastSent = 0; f.pending = null; }
+
+  $("faderRows").innerHTML = faders.map((f) =>
+    '<div class="fader" data-k="' + f.k + '">' +
+      '<div class="fhead"><span class="fname"></span><span class="ftag"></span><span class="fval">–</span></div>' +
+      '<div class="frow"><button class="step" data-step="-1">−</button>' +
+      '<div class="track"><div class="fill"></div><div class="zero" style="left:75%"></div><div class="thumb"></div></div>' +
+      '<button class="step" data-step="1">+</button></div></div>'
+  ).join("");
+  for (const f of faders) {
+    f.el = $("faderRows").querySelector('[data-k="' + f.k + '"]');
+    attachFader(f);
+    paintFader(f);
+  }
+}
+
+function paintFader(f) {
+  const pos = f.db == null ? 0 : dbToPos(f.db);
+  f.el.querySelector(".fill").style.width = (pos * 100) + "%";
+  f.el.querySelector(".thumb").style.left = (pos * 100) + "%";
+  f.el.querySelector(".fval").textContent = f.db == null ? "–" : fmtDb(f.db);
+  f.el.querySelector(".fname").textContent = (f.title || f.fallback) + f.suffix;
+  f.el.querySelector(".ftag").textContent = f.isOn ? "" : (f.k === "m" ? "MUTED" : "SEND OFF");
+}
+
+/** Send a level, at most every 50 ms while dragging; the last value always goes out. */
+function sendLevel(f, db, final) {
+  f.touched = Date.now();
+  const now = Date.now();
+  if (final || now - f.lastSent >= 50) {
+    clearTimeout(f.pending);
+    f.lastSent = now;
+    wingSet(f.level, Math.round(db * 10) / 10);
+  } else {
+    clearTimeout(f.pending);
+    f.pending = setTimeout(() => sendLevel(f, db, true), 50 - (now - f.lastSent));
+  }
+}
+
+function attachFader(f) {
+  const track = f.el.querySelector(".track");
+  let startX = 0, startPos = 0, active = false;
+  // Relative drag: touching the fader never makes it jump; only moving your finger changes it.
+  track.addEventListener("pointerdown", (e) => {
+    if (!wingOk || f.db == null) { toast("Wing not connected", true); return; }
+    active = true;
+    startX = e.clientX;
+    startPos = dbToPos(f.db);
+    track.setPointerCapture(e.pointerId);
+    track.classList.add("drag");
+    f.touched = Date.now();
+  });
+  track.addEventListener("pointermove", (e) => {
+    if (!active) return;
+    const w = track.clientWidth;
+    const pos = Math.max(0, Math.min(1, startPos + (e.clientX - startX) / w));
+    f.db = posToDb(pos);
+    paintFader(f);
+    sendLevel(f, f.db, false);
+  });
+  const end = () => {
+    if (!active) return;
+    active = false;
+    track.classList.remove("drag");
+    sendLevel(f, f.db, true);
+  };
+  track.addEventListener("pointerup", end);
+  track.addEventListener("pointercancel", end);
+
+  f.el.querySelectorAll(".step").forEach((b) => {
+    b.onclick = () => {
+      if (!wingOk || f.db == null) { toast("Wing not connected", true); return; }
+      const step = +b.dataset.step;
+      let d = f.db <= -89 ? (step > 0 ? -40 : -144) : Math.round(f.db) + step;
+      if (d < -60 && step < 0) d = -144;
+      d = Math.min(10, d);
+      f.db = d;
+      paintFader(f);
+      sendLevel(f, d, true);
+    };
+  });
+}
+
+// ---- connection
+let wingIp = null, wingName = "", wingOk = false, lastRx = 0, tick = 0;
+
+function wingSendRaw(u8, port) {
+  if (!wingIp) return;
+  if (DEMO) return demoWing(u8);
+  N.wingSend(wingIp, port || 2223, toB64(u8));
+}
+function wingGet(address) { wingSendRaw(oscMessage(address)); }
+function wingSet(address, value) {
+  wingSendRaw(oscMessage(address, [{ t: "f", v: value }]));
+}
+
+function renderWing() {
+  const c = $("chipWing");
+  c.className = "chip" + (wingOk ? " ok" : wingIp ? " wait" : "");
+  $("faders").classList.toggle("off", !wingOk);
+  let st;
+  if (wingOk) st = "";
+  else if (wingIp) st = "Wing not answering at " + wingIp + "…";
+  else st = settings.wingAuto ? "Looking for the Wing on this Wi-Fi…" : "Set the Wing's address in Settings";
+  $("fstatus").textContent = st;
+  $("fstatus").style.display = st ? "block" : "none";
+  $("wingStatus").textContent = wingOk
+    ? "Connected: " + (wingName || "Wing") + " at " + wingIp + "."
+    : (st || "Not connected.") + " The phone must be on the same Wi-Fi as the Wing.";
+}
+
+function onWingPacket(ip, port, u8) {
+  // Discovery answer: "WING,192.168.1.62,name,model,serial,firmware"
+  if (u8[0] !== 47) {     // not '/'
+    const text = dec.decode(u8);
+    if (text.startsWith("WING,")) {
+      const p = text.split(",");
+      if (settings.wingAuto && (!wingOk || wingIp !== p[1])) {
+        if (wingIp !== p[1]) log("Found Wing '" + p[2] + "' at " + p[1] + " (firmware " + p[5] + ")");
+        wingIp = p[1];
+        wingName = p[2];
+        settings.wingIp = wingIp;
+        saveSettings();
+        $("setWingIp").value = wingIp;
+        pollNames();
+        poll();
+      }
+    }
+    return;
+  }
+  if (ip !== wingIp) return;
+  let m;
+  try { m = oscParse(u8); } catch (e) { return; }
+  lastRx = Date.now();
+  if (!wingOk) { wingOk = true; log("Wing answering at " + wingIp); renderWing(); }
+
+  if (m.address === "/*" || m.address.endsWith("*")) {
+    if (m.args[0] && m.args[0] !== "OK") log("Wing says: " + m.args[0]);
+    return;
+  }
+  for (const f of faders) {
+    if (m.address === f.level && m.args.length >= 3) {
+      // reply is (text, position 0..1, dB). Ignore it while you're moving this fader.
+      if (Date.now() - f.touched < 1200) return;
+      const db = m.args[2];
+      if (f.db === null || Math.abs(f.db - db) > 0.05) { f.db = db; paintFader(f); }
+      return;
+    }
+    if (m.address === f.on && m.args.length) {
+      const v = typeof m.args[2] === "number" ? m.args[2] : parseInt(m.args[0], 10);
+      const isOn = v === f.onMeans;
+      if (isOn !== f.isOn) { f.isOn = isOn; paintFader(f); }
+      return;
+    }
+    if (m.address === f.name && m.args.length) {
+      const t = (m.args[0] || "").trim();
+      if (t !== f.title) { f.title = t; paintFader(f); }
+      return;
+    }
+  }
+}
+
+function poll() { for (const f of faders) wingGet(f.level); }
+function pollNames() { for (const f of faders) { wingGet(f.on); wingGet(f.name); } }
+
+// Every 400 ms: read the three levels (so changes made at the desk show up here).
+setInterval(() => {
+  tick++;
+  if (wingIp) poll();
+  if (wingIp && tick % 5 === 0) pollNames();
+
+  if (tick % 3 === 0) {
+    const ok = wingIp && Date.now() - lastRx < 3000;
+    if (!ok && wingOk) { wingOk = false; log("Wing stopped answering"); }
+    if (!ok) {
+      if (settings.wingAuto && !DEMO) { try { N.wingDiscover(); } catch (e) {} }
+      if (!settings.wingAuto) wingIp = settings.wingIp || null;
+    }
+    renderWing();
+  }
+}, 400);
+
+function restartWing() {
+  wingOk = false; lastRx = 0;
+  wingIp = settings.wingIp || null;     // try the last known address straight away
+  buildFaders();
+  if (!DEMO) { try { N.wingOpen(); if (settings.wingAuto) N.wingDiscover(); } catch (e) {} }
+  if (wingIp) { pollNames(); poll(); }
+  renderWing();
+}
+
+$("chipWing").onclick = () => {
+  if (wingOk) toast("Wing connected (" + wingIp + ")");
+  else { toast("Looking for the Wing…"); restartWing(); }
+};
+$("btnWingRetry").onclick = () => { log("Searching for the Wing"); restartWing(); };
+
+// =====================================================================================
+//  Messages from the Android side
+// =====================================================================================
+function onNative(type, text) {
+  if (type === "log") return log(text);
+  if (type === "helix") {
+    const was = helixOk;
+    helixOk = text.startsWith("connected:");
+    helixName = helixOk ? text.slice(10) : "";
+    if (helixOk && !was) { log("Helix connected: " + helixName); toast("Helix connected"); }
+    if (!helixOk && was) { log("Helix disconnected"); toast("Helix disconnected", true); }
+    if (text === "none" && !was) log("No Helix found on USB");
+    renderHelix();
+    return;
+  }
+  if (type === "set") {
+    tapping = false;
+    if (text.startsWith("fail:")) { toast(text.slice(5), true); log("SET failed: " + text.slice(5)); }
+    if (!editing) renderList();
+    return;
+  }
+  if (type === "wifi") {
+    log("Wi-Fi " + text);
+    if (text === "up") restartWing();
+    return;
+  }
+  if (type === "resume") { tryHelix(); if (!wingOk) restartWing(); return; }
+}
+window.__native = onNative;
+window.__wingPacket = (ip, port, b64) => onWingPacket(ip, port, fromB64(b64));
+
+// Keep looking for the Helix every 2 s while it's unplugged
+setInterval(() => { if (!helixOk) tryHelix(); }, 2000);
+
+// =====================================================================================
+//  SETTINGS
+// =====================================================================================
+function openSettings() {
+  $("setMidiCh").value = settings.midiCh;
+  $("setTaps").value = settings.taps;
+  $("setWingIp").value = settings.wingIp;
+  $("setBus").value = settings.bus;
+  $("setCh1").value = settings.ch1;
+  $("setCh2").value = settings.ch2;
+  $("setWingAuto").classList.toggle("on", settings.wingAuto);
+  $("setMaster").classList.toggle("on", settings.showMaster);
+  $("version").textContent = "Helix Remote " + (DEMO ? "(browser demo)" : N.version());
+  renderHelix(); renderWing(); renderLog();
+  $("sheet").classList.add("open");
+}
+function intIn(id, min, max, fallback) {
+  const v = parseInt($(id).value, 10);
+  return isNaN(v) ? fallback : Math.max(min, Math.min(max, v));
+}
+function closeSettings() {
+  const before = JSON.stringify([settings.bus, settings.ch1, settings.ch2, settings.showMaster, settings.wingAuto, settings.wingIp]);
+  settings.midiCh = intIn("setMidiCh", 1, 16, 1);
+  settings.taps = intIn("setTaps", 2, 8, 4);
+  settings.bus = intIn("setBus", 1, 16, 13);
+  settings.ch1 = intIn("setCh1", 1, 40, 13);
+  settings.ch2 = intIn("setCh2", 1, 40, 15);
+  settings.wingIp = $("setWingIp").value.trim();
+  saveSettings();
+  $("sheet").classList.remove("open");
+  const after = JSON.stringify([settings.bus, settings.ch1, settings.ch2, settings.showMaster, settings.wingAuto, settings.wingIp]);
+  if (before !== after) restartWing();
+}
+$("btnSettings").onclick = openSettings;
+$("btnClose").onclick = closeSettings;
+$("setWingAuto").onclick = () => { settings.wingAuto = !settings.wingAuto; $("setWingAuto").classList.toggle("on", settings.wingAuto); };
+$("setMaster").onclick = () => { settings.showMaster = !settings.showMaster; $("setMaster").classList.toggle("on", settings.showMaster); };
+$("btnClearLog").onclick = () => { logLines.length = 0; renderLog(); };
+
+// =====================================================================================
+//  DEMO (desktop browser only): a pretend Helix and Wing so the screen can be tried out
+// =====================================================================================
+const demoState = {};
+function demoWing(u8) {
+  const m = oscParse(u8);
+  if (m.args.length) { demoState[m.address] = m.args[0]; return; }
+  setTimeout(() => {
+    let reply;
+    if (m.address.endsWith("/lvl") || m.address.endsWith("/fdr")) {
+      const db = m.address in demoState ? demoState[m.address] : (m.address.startsWith("/bus") ? 0 : -6);
+      reply = oscMessage(m.address, [{ t: "s", v: String(db) }, { t: "f", v: dbToPos(db) }, { t: "f", v: db }]);
+    } else if (m.address.endsWith("/on")) {
+      reply = oscMessage(m.address, [{ t: "s", v: "1" }, { t: "f", v: 1 }, { t: "i", v: 1 }]);
+    } else if (m.address.endsWith("/mute")) {
+      reply = oscMessage(m.address, [{ t: "s", v: "0" }, { t: "f", v: 0 }, { t: "i", v: 0 }]);
+    } else if (m.address.endsWith("name")) {
+      const names = { 13: "GTR LEAD", 15: "KEYS" };
+      const n = m.address.startsWith("/bus") ? "IEM REYFFER" : (names[m.address.split("/")[2]] || "");
+      reply = oscMessage(m.address, [{ t: "s", v: n }]);
+    }
+    if (reply) onWingPacket(wingIp, 2223, reply);
+  }, 15);
+}
+
+// =====================================================================================
+//  START
+// =====================================================================================
+renderList();
+renderHelix();
+if (DEMO) {
+  log("Browser demo: no real Helix or Wing");
+  helixOk = true; helixName = "Demo Helix"; renderHelix();
+  settings.wingIp = settings.wingIp || "192.168.1.50";
+  wingIp = settings.wingIp;
+}
+restartWing();
+tryHelix();
+</script>
+</body>
+</html>
