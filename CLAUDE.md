@@ -39,12 +39,17 @@ With Tempo Select = Per Snapshot, recalling a snapshot loads its stored tempo fi
 - Faders use relative drag (touching never jumps the level), ±1 dB buttons, max one send per 50 ms while dragging, and ignore polled values for 1.2 s after a local change.
 
 ## To verify on real gear (status)
-- [ ] Helix shows up over USB MIDI on the S22+ (Android MIDI service sees it).
-- [ ] CC69 changes snapshot and the Helix stays in stomp view.
-- [ ] CC2 moves the EXP2 delay mix; moving the physical pedal takes over.
+- [x] Helix shows up over USB MIDI on the S22+ (connects straight away).
+- [x] CC69 changes snapshot and the Helix stays in stomp view.
+- [ ] CC2 moves the EXP2 delay mix — **didn't work** in the first home test (preset has 2–3 delay blocks). Owner is fine saving the delay mix per snapshot instead and leaving Delay start % empty. Cause not yet investigated.
 - [ ] CC64 taps land on the right BPM (check the Helix tempo display) with Tempo Select = Per Snapshot.
 - [ ] Wing found automatically at church; three faders move the right sends; desk changes show up in the app.
 - [ ] Wing fader low-end law matches (drag to around -40 dB and compare with the desk).
+
+## Known limits
+- **No preset save from the app:** the Helix has no MIDI command to save. Only HX Edit's undocumented USB protocol can (TonePush reverse-engineered it, HX Stomp only, can lock the unit up). Not for a live rig.
+- **On-screen keyboard:** the Helix's USB makes Android think a physical keyboard is attached. On the owner's S22+ the "Show on-screen keyboard" setting wasn't enough; Samsung's floating menu → "On Screen Keyboard" works.
+- **Battery:** the phone powers the USB link and the screen is always on. Charging while connected needs a USB-C hub with PD passthrough (untested).
 
 ## Working agreements
 - Ask before anything that changes live behaviour.
