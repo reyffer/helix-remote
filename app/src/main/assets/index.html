@@ -195,6 +195,9 @@
     <div class="status" id="helixStatus">–</div>
     <div class="field"><span>MIDI channel<small>Helix: Global Settings → MIDI/Tempo → MIDI Base Channel</small></span>
       <input type="number" id="setMidiCh" min="1" max="16" inputmode="numeric"></div>
+    <div class="field"><span>Send tempo taps<small>On: SET also taps the song's BPM into the Helix. Off: SET only changes
+      the snapshot, which recalls the exact tempo saved in it. The BPM still shows on each song.</small></span>
+      <button class="toggle" id="setSendTaps"></button></div>
     <div class="field"><span>Tempo taps sent by SET<small>SET sets the Helix tempo by "tapping" TAP for you this many times at the song's BPM. 4 is plenty.</small></span>
       <input type="number" id="setTaps" min="2" max="8" inputmode="numeric"></div>
     <div class="rowbtns"><button id="btnHelixRetry">Reconnect Helix</button></div>
@@ -252,7 +255,7 @@ function save(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
 }
 
-const DEFAULTS = { midiCh: 1, taps: 4, wingAuto: true, wingIp: "", bus: 13, src1: "ch:13", src2: "ch:15" };
+const DEFAULTS = { midiCh: 1, sendTaps: true, taps: 4, wingAuto: true, wingIp: "", bus: 13, src1: "ch:13", src2: "ch:15" };
 const storedSettings = load("hr.settings", {});
 const settings = Object.assign({}, DEFAULTS, storedSettings);
 if (!storedSettings.src1 && storedSettings.ch1) settings.src1 = "ch:" + storedSettings.ch1;   // from v1.2
@@ -430,7 +433,7 @@ function pressSet(i) {
     tryHelix();
     return;
   }
-  const bpm = parseFloat(s.bpm) || 0;
+  const bpm = settings.sendTaps ? (parseFloat(s.bpm) || 0) : 0;   // switch off = BPM is shown only
   const d = parseInt(s.delay, 10);
   const exp = isNaN(d) ? -1 : Math.round(Math.max(0, Math.min(100, d)) * 127 / 100);
   liveId = s.id;
@@ -927,6 +930,7 @@ function openSettings() {
   $("setWingIp").value = settings.wingIp;
   $("setBus").value = settings.bus;
   $("setWingAuto").classList.toggle("on", settings.wingAuto);
+  $("setSendTaps").classList.toggle("on", settings.sendTaps);
   $("version").textContent = "Helix Remote " + (DEMO ? "(browser demo)" : N.version());
   renderHelix(); renderWing(); renderLog();
   $("sheet").classList.add("open");
@@ -950,6 +954,12 @@ function closeSettings() {
 }
 $("btnSettings").onclick = openSettings;
 $("btnClose").onclick = closeSettings;
+$("setSendTaps").onclick = () => {
+  settings.sendTaps = !settings.sendTaps;
+  $("setSendTaps").classList.toggle("on", settings.sendTaps);
+  saveSettings();
+  log("Tempo taps " + (settings.sendTaps ? "on" : "off"));
+};
 $("setWingAuto").onclick = () => { settings.wingAuto = !settings.wingAuto; $("setWingAuto").classList.toggle("on", settings.wingAuto); };
 $("btnClearLog").onclick = () => { logLines.length = 0; renderLog(); };
 

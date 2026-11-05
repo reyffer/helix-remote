@@ -18,6 +18,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Process;
 import android.util.Base64;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
@@ -62,6 +63,10 @@ public class MainActivity extends Activity {
     private final Object midiLock = new Object();
     private final ExecutorService helixQueue = Executors.newSingleThreadExecutor();
     private final AtomicInteger setGeneration = new AtomicInteger();
+    private volatile long lastTapNs = 0;            // when the last tap-tempo tap was due (System.nanoTime)
+
+    private static final long TAP_RESET_NS = 2_200_000_000L;   // > 2 s = slowest tap gap the Helix accepts (30 BPM)
+    private static final long TAP_LEAD_NS = 4_000_000L;        // hand taps to Android 4 ms before they're due
 
     // ---- Wing (UDP)
     private ConnectivityManager cm;
@@ -221,12 +226,16 @@ public class MainActivity extends Activity {
         if (notify) event("helix", "none");
     }
 
-    private boolean sendMidi(int status, int d1, int d2) {
+    private boolean sendMidi(int status, int d1, int d2) { return sendMidiAt(status, d1, d2, 0); }
+
+    /** timestampNs = 0: send now. Otherwise ask Android's MIDI service to deliver it at that System.nanoTime(). */
+    private boolean sendMidiAt(int status, int d1, int d2, long timestampNs) {
         synchronized (midiLock) {
             if (helixIn == null) return false;
             byte[] msg = { (byte) status, (byte) (d1 & 0x7F), (byte) (d2 & 0x7F) };
             try {
-                helixIn.send(msg, 0, 3);
+                if (timestampNs > 0) helixIn.send(msg, 0, 3, timestampNs);
+                else helixIn.send(msg, 0, 3);
                 return true;
             } catch (Exception e) {
                 event("log", "MIDI send failed: " + e.getMessage());
@@ -253,6 +262,7 @@ public class MainActivity extends Activity {
         final int gen = setGeneration.incrementAndGet();
         helixQueue.execute(() -> {
             final int cc = 0xB0 | ((channel - 1) & 0x0F);
+            try { Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO); } catch (Exception ignored) {}
             try {
                 if (gen != setGeneration.get()) return;
                 if (!sendMidi(cc, 69, snapshot)) { event("set", "fail:Helix not connected"); return; }
@@ -260,13 +270,19 @@ public class MainActivity extends Activity {
                 Thread.sleep(60);
                 if (expValue >= 0 && gen == setGeneration.get()) sendMidi(cc, 2, expValue);
                 if (bpm > 0 && taps >= 2) {
-                    Thread.sleep(40);
                     long interval = Math.round(60_000_000_000.0 / bpm);
-                    long t0 = System.nanoTime();
+                    // The Helix measures the gap between taps. If the previous song's last tap was less than
+                    // ~2 s ago, our first tap would pair with it and show a random tempo, so wait it out.
+                    long t0 = Math.max(System.nanoTime() + 40_000_000L, lastTapNs + TAP_RESET_NS);
                     for (int i = 0; i < taps; i++) {
                         if (gen != setGeneration.get()) return;   // a newer song was pressed
-                        waitUntil(t0 + i * interval);
-                        sendMidi(cc, 64, 127);
+                        long due = t0 + i * interval;
+                        // Hand each tap to Android a few ms early with its exact due time, so the MIDI
+                        // service (not this thread) does the final timing. If a device ignores the time,
+                        // every tap is early by the same amount, so the gaps (the tempo) stay the same.
+                        waitUntil(due - TAP_LEAD_NS);
+                        sendMidiAt(cc, 64, 127, due);
+                        lastTapNs = due;
                     }
                 }
                 if (gen == setGeneration.get()) event("set", "done");
