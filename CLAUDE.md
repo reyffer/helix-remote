@@ -11,7 +11,8 @@ The owner is a live sound engineer, not a full-time developer. Keep the code sim
 - **SET button** on the right of each song row fires instantly. Tapping the title does nothing (accidental-brush protection). No long-press.
 - **What SET sends**, in order: CC69 = snapshot (0–7) → ~60 ms → CC2 = EXP2 position (delay mix starting point; his EXP2 controls the main delay mix, and the physical pedal takes over when moved) → ~40 ms → CC64 taps spaced at the song's BPM (default 4 taps). Empty BPM = no taps; empty delay = no CC2.
 - **Song list:** no library. He types title, key, BPM (and delay start %) each week and reorders. Saved on the device only.
-- **Wing:** faders control **channel send levels to his IEM bus** plus the **bus master** (like WingQ). Never the channels' own PA faders, never anything else. Top fader = his channel, middle = a second channel (keys to start), bottom = bus master (can be hidden). Two-way: the app polls so desk changes show up.
+- **Wing:** faders control **channel send levels to a target bus** plus that **bus master** (like WingQ). Never the channels' own PA faders, never anything else. Top fader = his channel, middle = a second channel (keys to start), bottom = target bus master. Two-way: the app polls so desk changes show up.
+- **Changing what a fader controls:** a ⚙ button left of each fader's − button (no long-press: he must never open a picker by accident while adjusting). Top/middle ⚙ → 8×6 grid of ch 1–40 + aux 1–8 (Wing names and colours). Bottom ⚙ → 4×4 grid of buses 1–16; the top two faders then send to that bus. When the target isn't his own bus, an amber bar shows "Working on X, not your mix" with a **↩ My mix** button. The app always starts on his own bus.
 - **Wing defaults:** his guitar is **ch 13** (stereo, inputs A13/14), IEM is **bus 13** (stereo), keys **ch 15**. All are settings.
 - **Wing IP isn't fixed** → find it automatically ("WING?" broadcast), remember the last address, manual address as a fallback. The Wing's Wi-Fi has internet.
 - **Build:** same pattern as Pedal Remote (reyffer/pedal-remote): one web page + thin Java wrapper, GitHub Actions builds a signed APK on every push to `main` and publishes it as a release. The APK is attached in chat too (GitHub downloads stall in Chrome on his phone).
@@ -33,7 +34,8 @@ With Tempo Select = Per Snapshot, recalling a snapshot loads its stored tempo fi
 - OSC on UDP 2223; replies go back to the sending port. Discovery: send `WING?` to UDP 2222 → `WING,<ip>,<name>,<model>,<serial>,<fw>`.
 - Read: send the address with no args. Float params reply `,sff` = (text, position 0..1, dB); int params `,sfi`.
 - Write: a float sets dB directly (e.g. `/ch/13/send/13/lvl ,f -6.0`). -144 = -∞.
-- Addresses used: `/ch/N/send/B/lvl`, `/ch/N/send/B/on` (display only), `/ch/N/$name`, `/bus/B/fdr`, `/bus/B/mute` (display only), `/bus/B/name`.
+- Addresses used: `/ch|aux/N/send/B/lvl`, `/ch|aux/N/send/B/on` (display only), `/ch|aux/N/$name` (read-only effective name) and `/name`, `/ch|aux|bus/N/col` (1..12), `/bus/B/fdr`, `/bus/B/mute` (display only), `/bus/B/name`.
+- Colours 1..12: gray blue, medium blue, dark blue, turquoise, green, olive green, yellow, orange, red, coral, pink, mauve. All names/colours are read on connect and when a picker opens (16 requests per 30 ms) and cached on the device.
 - Only one OSC subscription is allowed at a time, so the app **polls** (every 400 ms) instead of subscribing, to avoid stealing it from WingQ/Mixing Station/Co-Pilot.
 - Fader position ↔ dB uses the X32 law (0.75 = 0 dB, 1.0 = +10 dB). The upper half matches the Wing's own replies; the low end (< -30 dB) is unverified.
 - Faders use relative drag (touching never jumps the level), ±1 dB buttons, max one send per 50 ms while dragging, and ignore polled values for 1.2 s after a local change.
@@ -44,6 +46,7 @@ With Tempo Select = Per Snapshot, recalling a snapshot loads its stored tempo fi
 - [ ] CC2 moves the EXP2 delay mix — **didn't work** in the first home test (preset has 2–3 delay blocks). Owner is fine saving the delay mix per snapshot instead and leaving Delay start % empty. Cause not yet investigated.
 - [ ] CC64 taps land on the right BPM (check the Helix tempo display) with Tempo Select = Per Snapshot.
 - [ ] Wing found automatically at church; three faders move the right sends; desk changes show up in the app.
+- [ ] Names and colours come through (check `$name` vs `name`, and that colour replies parse); aux sends to buses work.
 - [ ] Wing fader low-end law matches (drag to around -40 dB and compare with the desk).
 
 ## Known limits
