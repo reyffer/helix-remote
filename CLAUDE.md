@@ -47,7 +47,7 @@ With Tempo Select = Per Snapshot, recalling a snapshot loads its stored tempo fi
 - [x] CC69 changes snapshot and the Helix stays in stomp view.
 - [ ] CC2 moves the EXP2 delay mix — **didn't work** in the first home test (preset has 2–3 delay blocks). Owner is fine saving the delay mix per snapshot instead and leaving Delay start % empty. Cause not yet investigated.
 - [ ] CC64 taps land on the right BPM (check the Helix tempo display) with Tempo Select = Per Snapshot.
-- [ ] Wing found automatically at church; three faders move the right sends; desk changes show up in the app.
+- [x] Wing found automatically at church (10.6.6.20); faders working (v1.5, after fixing a Wi-Fi/reconnect loop that made them flicker).
 - [ ] Names and colours come through (check `$name` vs `name`, and that colour replies parse); aux sends to buses work.
 - [ ] Wing fader low-end law matches (drag to around -40 dB and compare with the desk).
 
