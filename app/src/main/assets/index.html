@@ -783,6 +783,13 @@ function renderWing() {
     : (st || "Not connected.") + " The phone must be on the same Wi-Fi as the Wing.";
 }
 
+const loggedKinds = {};
+function logFirstReply(m) {
+  const kind = m.address.replace(/\/\d+/g, "/N");
+  if (loggedKinds[kind]) return;
+  loggedKinds[kind] = true;
+  log("Wing reply " + m.address + " → " + JSON.stringify(m.args));
+}
 const INFO_RE = /^\/(ch|aux|bus)\/(\d+)\/(\$name|name|col)$/;
 
 function onWingPacket(ip, port, u8) {
@@ -810,6 +817,7 @@ function onWingPacket(ip, port, u8) {
   lastRx = Date.now();
   if (!wingOk) { wingOk = true; log("Wing answering at " + wingIp); renderWing(); fetchAllInfo(); }
 
+  logFirstReply(m);
   if (m.address === "/*" || m.address.endsWith("*")) {
     if (m.args[0] && m.args[0] !== "OK") log("Wing says: " + m.args[0]);
     return;
@@ -872,6 +880,12 @@ setInterval(() => {
   }
 }, 400);
 
+/** Look for the Wing again without touching the faders (used when Wi-Fi comes back or the app reopens). */
+function reconnectWing() {
+  if (!DEMO) { try { N.wingOpen(); if (settings.wingAuto) N.wingDiscover(); } catch (e) {} }
+  if (wingIp) { pollActive(); poll(); }
+}
+
 function restartWing() {
   wingOk = false; lastRx = 0;
   wingIp = settings.wingIp || null;     // try the last known address straight away
@@ -885,7 +899,11 @@ $("chipWing").onclick = () => {
   if (wingOk) toast("Wing connected (" + wingIp + ")");
   else { toast("Looking for the Wing…"); restartWing(); }
 };
-$("btnWingRetry").onclick = () => { log("Searching for the Wing"); restartWing(); };
+$("btnWingRetry").onclick = () => {
+  log("Searching for the Wing");
+  if (!DEMO) { try { N.wingReopen(); } catch (e) {} }
+  restartWing();
+};
 
 // =====================================================================================
 //  Messages from the Android side
@@ -910,10 +928,10 @@ function onNative(type, text) {
   }
   if (type === "wifi") {
     log("Wi-Fi " + text);
-    if (text === "up") restartWing();
+    if (text === "up") reconnectWing();
     return;
   }
-  if (type === "resume") { tryHelix(); if (!wingOk) restartWing(); return; }
+  if (type === "resume") { tryHelix(); if (!wingOk) reconnectWing(); return; }
 }
 window.__native = onNative;
 window.__wingPacket = (ip, port, b64) => onWingPacket(ip, port, fromB64(b64));

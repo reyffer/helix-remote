@@ -304,12 +304,11 @@ public class MainActivity extends Activity {
     private final ConnectivityManager.NetworkCallback wifiCallback = new ConnectivityManager.NetworkCallback() {
         @Override public void onAvailable(Network network) {
             event("log", "Wi-Fi connected");
-            netQueue.execute(() -> openSocket());
+            netQueue.execute(() -> openSocket(true));
         }
         @Override public void onLost(Network network) {
             event("log", "Wi-Fi lost");
-            event("wifi", "down");
-            netQueue.execute(() -> openSocket());
+            netQueue.execute(() -> openSocket(true));
         }
     };
 
@@ -317,7 +316,7 @@ public class MainActivity extends Activity {
      * (Re)open our UDP socket, tied to the Wi-Fi network. Tying it to Wi-Fi stops Android from
      * sending Wing traffic over mobile data when it thinks the Wi-Fi is "bad".
      */
-    private synchronized void openSocket() {
+    private synchronized void openSocket(boolean announce) {
         closeSocket();
         try {
             DatagramSocket s = new DatagramSocket(null);
@@ -332,10 +331,12 @@ public class MainActivity extends Activity {
             sock = s;
             wifi = w;
             startReceiving(s);
-            event("wifi", w != null ? "up" : "down");
+            // Only tell the page when Android reported a Wi-Fi change. (Announcing every reopen made the
+            // page reconnect, which reopened the socket again: an endless loop.)
+            if (announce) event("wifi", w != null ? "up" : "down");
         } catch (Exception e) {
             event("log", "Network socket failed: " + e.getMessage());
-            event("wifi", "down");
+            if (announce) event("wifi", "down");
         }
     }
 
@@ -370,7 +371,7 @@ public class MainActivity extends Activity {
     private void udpSend(String host, int port, byte[] data) {
         netQueue.execute(() -> {
             DatagramSocket s = sock;
-            if (s == null) { openSocket(); s = sock; }
+            if (s == null) { openSocket(false); s = sock; }
             if (s == null) return;
             try {
                 s.send(new DatagramPacket(data, data.length, InetAddress.getByName(host), port));
@@ -384,7 +385,7 @@ public class MainActivity extends Activity {
     private void discover() {
         netQueue.execute(() -> {
             DatagramSocket s = sock;
-            if (s == null) { openSocket(); s = sock; }
+            if (s == null) { openSocket(false); s = sock; }
             if (s == null) return;
             byte[] q = "WING?".getBytes();
             try {
@@ -438,7 +439,10 @@ public class MainActivity extends Activity {
         }
 
         // Wing
-        @JavascriptInterface public void wingOpen() { netQueue.execute(MainActivity.this::openSocket); }
+        /** Open the socket if there isn't one (never reopens a working one). */
+        @JavascriptInterface public void wingOpen() { netQueue.execute(() -> { if (sock == null) openSocket(false); }); }
+        /** Force a fresh socket ("Search for the Wing again"). */
+        @JavascriptInterface public void wingReopen() { netQueue.execute(() -> openSocket(false)); }
         @JavascriptInterface public void wingDiscover() { discover(); }
         @JavascriptInterface public void wingSend(String host, int port, String base64) {
             udpSend(host, port, Base64.decode(base64, Base64.NO_WRAP));
